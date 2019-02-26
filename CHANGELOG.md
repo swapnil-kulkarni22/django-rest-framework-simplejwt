@@ -1,3 +1,7 @@
+## Development
+
+* We now return HTTP 401 for user not found or inactive.
+
 ## Version 4.0
 
 * Removed Python 2 support.
