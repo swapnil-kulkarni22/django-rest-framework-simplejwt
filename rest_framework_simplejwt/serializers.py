@@ -1,10 +1,19 @@
+##### MODDED #####
+from __future__ import unicode_literals
+
 from django.contrib.auth import authenticate
+from django.utils.six import text_type
 from django.utils.translation import ugettext_lazy as _
 from rest_framework import serializers
 
 from .settings import api_settings
 from .state import User
 from .tokens import RefreshToken, SlidingToken, UntypedToken
+
+##### CUSTOM IMPORT
+from user.models import Organization
+from django.db.models import Q
+##### CUSTOM IMPORT ENDs
 
 
 class PasswordField(serializers.CharField):
@@ -14,25 +23,20 @@ class PasswordField(serializers.CharField):
         kwargs['style']['input_type'] = 'password'
         kwargs['write_only'] = True
 
-        super().__init__(*args, **kwargs)
+        super(PasswordField, self).__init__(*args, **kwargs)
 
 
 class TokenObtainSerializer(serializers.Serializer):
     username_field = User.USERNAME_FIELD
 
-    default_error_messages = {
-        'no_active_account': _('No active account found with the given credentials')
-    }
-
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        super(TokenObtainSerializer, self).__init__(*args, **kwargs)
 
         self.fields[self.username_field] = serializers.CharField()
         self.fields['password'] = PasswordField()
 
     def validate(self, attrs):
         self.user = authenticate(**{
-            'request': self.context['request'],
             self.username_field: attrs[self.username_field],
             'password': attrs['password'],
         })
@@ -45,13 +49,15 @@ class TokenObtainSerializer(serializers.Serializer):
         # users from authenticating to enforce a reasonable policy and provide
         # sensible backwards compatibility with older Django versions.
         if self.user is None or not self.user.is_active:
-            self.fail('no_active_account')
+            raise serializers.ValidationError(
+                _('No active account found with the given credentials'),
+            )
 
         return {}
 
     @classmethod
     def get_token(cls, user):
-        raise NotImplementedError('Must implement `get_token` method for `TokenObtainSerializer` subclasses')
+        raise NotImplemented('Must implement `get_token` method for `TokenObtainSerializer` subclasses')
 
 
 class TokenObtainPairSerializer(TokenObtainSerializer):
@@ -60,12 +66,12 @@ class TokenObtainPairSerializer(TokenObtainSerializer):
         return RefreshToken.for_user(user)
 
     def validate(self, attrs):
-        data = super().validate(attrs)
+        data = super(TokenObtainPairSerializer, self).validate(attrs)
 
         refresh = self.get_token(self.user)
 
-        data['refresh'] = str(refresh)
-        data['access'] = str(refresh.access_token)
+        data['refresh'] = text_type(refresh)
+        data['access'] = text_type(refresh.access_token)
 
         return data
 
@@ -76,11 +82,11 @@ class TokenObtainSlidingSerializer(TokenObtainSerializer):
         return SlidingToken.for_user(user)
 
     def validate(self, attrs):
-        data = super().validate(attrs)
+        data = super(TokenObtainSlidingSerializer, self).validate(attrs)
 
         token = self.get_token(self.user)
 
-        data['token'] = str(token)
+        data['token'] = text_type(token)
 
         return data
 
@@ -91,7 +97,7 @@ class TokenRefreshSerializer(serializers.Serializer):
     def validate(self, attrs):
         refresh = RefreshToken(attrs['refresh'])
 
-        data = {'access': str(refresh.access_token)}
+        data = {'access': text_type(refresh.access_token)}
 
         if api_settings.ROTATE_REFRESH_TOKENS:
             if api_settings.BLACKLIST_AFTER_ROTATION:
@@ -106,7 +112,7 @@ class TokenRefreshSerializer(serializers.Serializer):
             refresh.set_jti()
             refresh.set_exp()
 
-            data['refresh'] = str(refresh)
+            data['refresh'] = text_type(refresh)
 
         return data
 
@@ -124,7 +130,7 @@ class TokenRefreshSlidingSerializer(serializers.Serializer):
         # Update the "exp" claim
         token.set_exp()
 
-        return {'token': str(token)}
+        return {'token': text_type(token)}
 
 
 class TokenVerifySerializer(serializers.Serializer):
@@ -134,3 +140,55 @@ class TokenVerifySerializer(serializers.Serializer):
         UntypedToken(attrs['token'])
 
         return {}
+
+
+
+
+
+##### CUSTOM CLASS #####
+class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    subdomain = serializers.CharField()
+
+    def validate(self, attrs):
+        data = super(CustomTokenObtainPairSerializer, self).validate(attrs)
+
+        ##### ORGANIZATION AND FACULTY CHECK #####
+        # TODO Try hittind Redis instead of DB
+
+        # To check if the loginType is same, if not, the sigin location is invalid
+        # Don't delete this block
+        # To activate this block just uncomment and pass 'signinType' from React from the SignInContext
+
+        # groups = self.user.groups.values_list('name', flat=True)
+        # if 'candidate' in groups and self.context['request'].data['signinType'] == 'candidate':
+        #     user_type = Q(candidate_organization__common_auth=self.user)
+        # elif 'institute' in groups and self.context['request'].data['sigininType'] == 'admin':
+        #     user_type = Q(user_organization__common_auth=self.user)
+        # else:
+        #     raise serializers.ValidationError(_('Invalid Login Location'), )
+
+        # For same Signin location for Admin & Candidate
+        groups = self.user.groups.values_list('name', flat=True)
+        if 'candidate' in groups:
+            user_type = Q(candidate_organization__common_auth=self.user)
+        elif 'institute' in groups:
+            user_type = Q(user_organization__common_auth=self.user)
+        else:
+            raise serializers.ValidationError(_('Invalid User'), )
+
+        organization = Organization.objects.get(user_type)
+
+        if organization.sub_domain != attrs.get('subdomain'):
+            raise serializers.ValidationError(_('Wrong credentials for this institute'), )
+        ##### ORGANIZATION AND FACULTY CHECK ENDS #####
+
+        refresh = super(CustomTokenObtainPairSerializer, self).get_token(self.user)
+
+        refresh['subdomain'] = attrs.get('subdomain')
+        data['refresh'] = text_type(refresh)
+        data['access'] = text_type(refresh.access_token)
+        data['groups'] = groups
+
+        return data
+    
+##### ENDS #####

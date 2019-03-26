@@ -1,3 +1,7 @@
+##### MODDED #####
+from __future__ import unicode_literals
+
+from django.utils.six import text_type
 from django.utils.translation import ugettext_lazy as _
 from rest_framework import HTTP_HEADER_ENCODING, authentication
 
@@ -5,6 +9,13 @@ from .exceptions import AuthenticationFailed, InvalidToken, TokenError
 from .models import TokenUser
 from .settings import api_settings
 from .state import User
+from .tokens import AccessToken
+
+##### CUSTOM IMPORT
+from user.models import Organization
+from django.db.models import Q
+##### CUSTOM IMPORT ENDs
+
 
 AUTH_HEADER_TYPES = api_settings.AUTH_HEADER_TYPES
 
@@ -27,6 +38,41 @@ class JWTAuthentication(authentication.BaseAuthentication):
     def authenticate(self, request):
         header = self.get_header(request)
         if header is None:
+
+            # Author = "Eriz"
+            # MODDIFIED CODE
+            if api_settings.JWT_AUTH_COOKIE:
+                validated_token = self.get_validated_token(request.COOKIES.get(api_settings.JWT_AUTH_COOKIE))
+
+                
+                # Hit Redis instead of DB
+                # Check for organization in Redis for the user, if exists 'Proceed' else return None, None
+                # TODO
+                # print(validated_token.payload['user_id'])
+                # print(validated_token['subdomain'])
+                # print(validated_token['user_id'])
+
+                user = self.get_user(validated_token)
+                # print(user)
+                groups = user.groups.values_list('name', flat=True)
+                if 'candidate' in groups:
+                    user_type = Q(candidate_organization__common_auth=user)
+                if 'institute' in groups:
+                    user_type = Q(user_organization__common_auth=user)
+
+                organization = Organization.objects.get(user_type)
+
+                # organization = Organization.objects.get(user_organization__common_auth=user)
+                if organization.sub_domain != validated_token['subdomain']:
+                    return None, None
+                ##### Playground ends #####
+                return user, None
+
+
+
+
+            # BLOCK ENDS
+
             return None
 
         raw_token = self.get_raw_token(header)
@@ -50,7 +96,7 @@ class JWTAuthentication(authentication.BaseAuthentication):
         """
         header = request.META.get('HTTP_AUTHORIZATION')
 
-        if isinstance(header, str):
+        if isinstance(header, text_type):
             # Work around django test client oddness
             header = header.encode(HTTP_HEADER_ENCODING)
 
@@ -62,10 +108,6 @@ class JWTAuthentication(authentication.BaseAuthentication):
         header value.
         """
         parts = header.split()
-
-        if len(parts) == 0:
-            # Empty AUTHORIZATION header sent
-            return None
 
         if parts[0] not in AUTH_HEADER_TYPE_BYTES:
             # Assume the header does not contain a JSON web token
