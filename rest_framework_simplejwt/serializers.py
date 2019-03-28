@@ -12,7 +12,6 @@ from .tokens import RefreshToken, SlidingToken, UntypedToken
 
 ##### CUSTOM IMPORT
 from user.models import Organization
-from django.db.models import Q
 ##### CUSTOM IMPORT ENDs
 
 
@@ -152,35 +151,14 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     def validate(self, attrs):
         data = super(CustomTokenObtainPairSerializer, self).validate(attrs)
 
-        ##### ORGANIZATION AND FACULTY CHECK #####
+        ##### ORGANIZATION CHECK #####
         # TODO Try hittind Redis instead of DB
-
-        # To check if the loginType is same, if not, the sigin location is invalid
-        # Don't delete this block
-        # To activate this block just uncomment and pass 'signinType' from React from the SignInContext
-
-        # groups = self.user.groups.values_list('name', flat=True)
-        # if 'candidate' in groups and self.context['request'].data['signinType'] == 'candidate':
-        #     user_group = Q(candidate_organization__common_auth=self.user)
-        # elif 'institute' in groups and self.context['request'].data['sigininType'] == 'admin':
-        #     user_group = Q(user_organization__common_auth=self.user)
-        # else:
-        #     raise serializers.ValidationError(_('Invalid Login Location'), )
-
-        # For same Signin location for Admin & Candidate
         groups = self.user.groups.values_list('name', flat=True)
-        if 'candidate' in groups:
-            user_group = Q(candidate_organization__common_auth=self.user)
-        elif 'institute' in groups:
-            user_group = Q(user_organization__common_auth=self.user)
-        else:
-            raise serializers.ValidationError(_('Invalid User'), )
-
-        organization = Organization.objects.get(user_group)
+        organization = Organization.objects.get(id=self.user.organization.pk)
 
         if organization.sub_domain != attrs.get('subdomain'):
             raise serializers.ValidationError(_('Wrong credentials for this institute'), )
-        ##### ORGANIZATION AND FACULTY CHECK ENDS #####
+        ##### ORGANIZATION CHECK ENDS #####
 
         refresh = super(CustomTokenObtainPairSerializer, self).get_token(self.user)
 
