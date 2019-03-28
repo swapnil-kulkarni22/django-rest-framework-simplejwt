@@ -166,6 +166,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         data['refresh'] = text_type(refresh)
         data['access'] = text_type(refresh.access_token)
         data['groups'] = groups
+        data['active_user'] = self.user.user.pk
 
         return data
     
