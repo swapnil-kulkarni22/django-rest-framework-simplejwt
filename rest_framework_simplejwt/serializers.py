@@ -161,22 +161,22 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 
         # groups = self.user.groups.values_list('name', flat=True)
         # if 'candidate' in groups and self.context['request'].data['signinType'] == 'candidate':
-        #     user_type = Q(candidate_organization__common_auth=self.user)
+        #     user_group = Q(candidate_organization__common_auth=self.user)
         # elif 'institute' in groups and self.context['request'].data['sigininType'] == 'admin':
-        #     user_type = Q(user_organization__common_auth=self.user)
+        #     user_group = Q(user_organization__common_auth=self.user)
         # else:
         #     raise serializers.ValidationError(_('Invalid Login Location'), )
 
         # For same Signin location for Admin & Candidate
         groups = self.user.groups.values_list('name', flat=True)
         if 'candidate' in groups:
-            user_type = Q(candidate_organization__common_auth=self.user)
+            user_group = Q(candidate_organization__common_auth=self.user)
         elif 'institute' in groups:
-            user_type = Q(user_organization__common_auth=self.user)
+            user_group = Q(user_organization__common_auth=self.user)
         else:
             raise serializers.ValidationError(_('Invalid User'), )
 
-        organization = Organization.objects.get(user_type)
+        organization = Organization.objects.get(user_group)
 
         if organization.sub_domain != attrs.get('subdomain'):
             raise serializers.ValidationError(_('Wrong credentials for this institute'), )

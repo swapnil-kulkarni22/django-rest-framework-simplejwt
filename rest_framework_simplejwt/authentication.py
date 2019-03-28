@@ -56,11 +56,11 @@ class JWTAuthentication(authentication.BaseAuthentication):
                 # print(user)
                 groups = user.groups.values_list('name', flat=True)
                 if 'candidate' in groups:
-                    user_type = Q(candidate_organization__common_auth=user)
+                    user_group = Q(candidate_organization__common_auth=user)
                 if 'institute' in groups:
-                    user_type = Q(user_organization__common_auth=user)
+                    user_group = Q(user_organization__common_auth=user)
 
-                organization = Organization.objects.get(user_type)
+                organization = Organization.objects.get(user_group)
 
                 # organization = Organization.objects.get(user_organization__common_auth=user)
                 if organization.sub_domain != validated_token['subdomain']:
