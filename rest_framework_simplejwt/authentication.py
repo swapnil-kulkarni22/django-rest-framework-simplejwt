@@ -13,7 +13,7 @@ from .tokens import AccessToken
 
 ##### CUSTOM IMPORT
 from user.models import Organization
-from django.db.models import Q
+from django.contrib.auth.signals import user_logged_in
 ##### CUSTOM IMPORT ENDs
 
 
@@ -53,17 +53,15 @@ class JWTAuthentication(authentication.BaseAuthentication):
                 # print(validated_token['user_id'])
 
                 user = self.get_user(validated_token)
+
                 groups = user.groups.values_list('name', flat=True)
                 organization = Organization.objects.get(id=user.organization.pk)
 
-                # organization = Organization.objects.get(user_organization__common_auth=user)
                 if organization.sub_domain != validated_token['subdomain']:
                     return None, None
                 ##### Playground ends #####
+                user_logged_in.send(sender=user.__class__, request=request, user=user)
                 return user, None
-
-
-
 
             # BLOCK ENDS
 
