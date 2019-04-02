@@ -165,7 +165,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         refresh['subdomain'] = attrs.get('subdomain')
         data['refresh'] = text_type(refresh)
         data['access'] = text_type(refresh.access_token)
-        data['user'] = {'active_user': self.user.pk, 'username': self.user.username, 'groups' : groups}
+        data['user'] = {'active_user': self.user.pk, 'full_name': self.user.name, 'username': self.user.username, 'groups' : groups}
 
         return data
     
