@@ -11,7 +11,7 @@ from .state import User
 from .tokens import RefreshToken, SlidingToken, UntypedToken
 
 ##### CUSTOM IMPORT
-from user.models import Organization
+from user.models import Organization, CommonAuth
 ##### CUSTOM IMPORT ENDs
 
 
@@ -166,7 +166,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         data['refresh'] = text_type(refresh)
         data['access'] = text_type(refresh.access_token)
         data['groups'] = groups
-        data['active_user'] = self.user.user.pk
+        data['active_user'] = self.user.pk
 
         return data
     
