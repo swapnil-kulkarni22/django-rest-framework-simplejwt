@@ -8,7 +8,11 @@ from . import serializers
 from .authentication import AUTH_HEADER_TYPES
 from .exceptions import InvalidToken, TokenError
 from .settings import api_settings
+
+##### CUSTOM IMPORT #####
 from datetime import datetime
+from django.http import HttpResponse
+##### CUSTOM IMPORT ENDS #####
 
 
 class TokenViewBase(generics.GenericAPIView):
@@ -100,19 +104,19 @@ token_verify = TokenVerifyView.as_view()
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = serializers.CustomTokenObtainPairSerializer
 
-
     def post(self, request, *args, **kwargs):
         response, serializer = super(CustomTokenObtainPairView, self).post(request)
 
         if api_settings.JWT_AUTH_COOKIE:
-            expiration = (datetime.utcnow() + api_settings.ACCESS_TOKEN_LIFETIME)
+            access_expiration = (datetime.utcnow() + api_settings.ACCESS_TOKEN_LIFETIME)
+            refresh_expiration = (datetime.utcnow() + api_settings.REFRESH_TOKEN_LIFETIME)
             response.set_cookie(api_settings.JWT_AUTH_COOKIE,
                                 serializer.validated_data[api_settings.JWT_AUTH_COOKIE],
-                                expires=expiration,
+                                expires=access_expiration,
                                 httponly=True)
             response.set_cookie('refresh',
                                 serializer.validated_data['refresh'],
-                                expires=expiration,
+                                expires=refresh_expiration,
                                 httponly=True)
 
         # TODO Save in user_login_summary
@@ -123,4 +127,21 @@ class CustomTokenObtainPairView(TokenObtainPairView):
         # print(request.META['HTTP_USER_AGENT'])
         # user_login.save(update_fields=['ip_address','user_agent'])
         return response
+
+class CustomTokenRefreshView(TokenRefreshView):
+
+    def post(self, request, *args, **kwargs):
+        if request.COOKIES.get('refresh'):
+            request.data['refresh'] = request._request.COOKIES['refresh']
+            response, serializer = super(CustomTokenRefreshView, self).post(request)
+
+            if api_settings.JWT_AUTH_COOKIE:
+                access_expiration = (datetime.utcnow() + api_settings.ACCESS_TOKEN_LIFETIME)
+                response.set_cookie(api_settings.JWT_AUTH_COOKIE,
+                                    serializer.validated_data[api_settings.JWT_AUTH_COOKIE],
+                                    expires=access_expiration,
+                                    httponly=True)
+            return response
+        return HttpResponse('Unauthorized', status=401)
+
 ##### MOD ENDS #####

@@ -168,5 +168,3 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         data['user'] = {'active_user': self.user.pk, 'full_name': self.user.name, 'username': self.user.username, 'groups' : groups}
 
         return data
-    
-##### ENDS #####

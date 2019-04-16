@@ -9,9 +9,9 @@ from .exceptions import AuthenticationFailed, InvalidToken, TokenError
 from .models import TokenUser
 from .settings import api_settings
 from .state import User
-from .tokens import AccessToken
 
 ##### CUSTOM IMPORT
+from datetime import datetime
 from user.models import Organization
 from django.contrib.auth.signals import user_logged_in
 ##### CUSTOM IMPORT ENDs
@@ -47,10 +47,6 @@ class JWTAuthentication(authentication.BaseAuthentication):
                 
                 # Hit Redis instead of DB
                 # Check for organization in Redis for the user, if exists 'Proceed' else return None, None
-                # TODO
-                # print(validated_token.payload['user_id'])
-                # print(validated_token['subdomain'])
-                # print(validated_token['user_id'])
 
                 user = self.get_user(validated_token)
 
@@ -61,6 +57,11 @@ class JWTAuthentication(authentication.BaseAuthentication):
                     return None, None
                 ##### Playground ends #####
                 user_logged_in.send(sender=user.__class__, request=request, user=user)
+
+                refresh_time = int(validated_token.payload['exp'] - (1/3) * validated_token.lifetime.seconds)
+                if int(datetime.now().timestamp()) >= refresh_time and int(datetime.now().timestamp()) <= validated_token.payload['exp']:
+                    return user, validated_token
+
                 return user, None
 
             # BLOCK ENDS
