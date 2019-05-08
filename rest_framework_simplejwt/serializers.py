@@ -12,6 +12,8 @@ from .tokens import RefreshToken, SlidingToken, UntypedToken
 
 ##### CUSTOM IMPORT
 from user.models import Organization, CommonAuth
+
+
 ##### CUSTOM IMPORT ENDs
 
 
@@ -36,7 +38,7 @@ class TokenObtainSerializer(serializers.Serializer):
 
     def validate(self, attrs):
         self.user = authenticate(**{
-            self.username_field: attrs[self.username_field],
+            self.username_field: attrs['subdomain'] + '_' + attrs[self.username_field],
             'password': attrs['password'],
         })
 
@@ -141,9 +143,6 @@ class TokenVerifySerializer(serializers.Serializer):
         return {}
 
 
-
-
-
 ##### CUSTOM CLASS #####
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     subdomain = serializers.CharField()
@@ -165,6 +164,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         refresh['subdomain'] = attrs.get('subdomain')
         data['refresh'] = text_type(refresh)
         data['access'] = text_type(refresh.access_token)
-        data['user'] = {'active_user': self.user.pk, 'full_name': self.user.name, 'username': self.user.username, 'groups' : groups}
+        data['user'] = {'active_user': self.user.pk, 'full_name': self.user.name, 'username': self.user.username,
+                        'groups': groups}
 
         return data
