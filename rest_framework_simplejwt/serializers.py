@@ -165,7 +165,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         data['refresh'] = text_type(refresh)
         data['access'] = text_type(refresh.access_token)
         data['user'] = {'active_user': self.user.pk, 'full_name': self.user.name,
-                        'username': self.user.username.split(organization.sub_domain + '_')[1],
+                        'username': self.user.username.split(organization.sub_domain + '_', 1)[1],
                         'groups': groups}
 
         return data
