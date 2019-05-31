@@ -153,9 +153,9 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         ##### ORGANIZATION CHECK #####
         # TODO Try hittind Redis instead of DB
         groups = self.user.groups.values_list('name', flat=True)
-        organization = Organization.objects.get(id=self.user.organization.pk)
-
-        if organization.sub_domain != attrs.get('subdomain'):
+        # organization = Organization.objects.get(id=self.user.organization.pk).__dict__
+        organization = self.user.organization.__dict__
+        if organization['sub_domain'] != attrs.get('subdomain'):
             raise serializers.ValidationError(_('Wrong credentials for this institute'), )
         ##### ORGANIZATION CHECK ENDS #####
 
@@ -165,7 +165,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         data['refresh'] = text_type(refresh)
         data['access'] = text_type(refresh.access_token)
         data['user'] = {'active_user': self.user.pk, 'full_name': self.user.name,
-                        'username': self.user.username.split(organization.sub_domain + '_', 1)[1],
+                        'username': self.user.username.split(organization['sub_domain'] + '_', 1)[1],
                         'groups': groups}
 
         return data
